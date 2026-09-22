@@ -1,0 +1,18 @@
+{
+  "name": "J/70 ORC 2022 One Design polar",
+  "source": "https://data.orc.org/public/od/2022/j70.od.html?nav=1",
+  "source_issued": "2022",
+  "vpp_version": "2022 1.04",
+  "sail_configuration": "45.64 m2 asymmetric spinnaker",
+  "units": {"tws": "knots", "twa": "degrees", "boat_speed": "knots"},
+  "common_twa": [52, 60, 75, 90, 110, 120, 135, 150],
+  "rows": [
+    {"tws": 6, "beat_twa": 43.3, "beat_speed": 4.122, "speeds": [4.60, 4.88, 5.10, 5.43, 5.51, 5.36, 4.83, 4.12], "run_twa": 144.8, "run_speed": 4.369},
+    {"tws": 8, "beat_twa": 42.4, "beat_speed": 4.970, "speeds": [5.53, 5.76, 5.90, 6.23, 6.32, 6.22, 5.89, 5.21], "run_twa": 148.0, "run_speed": 5.318},
+    {"tws": 10, "beat_twa": 40.2, "beat_speed": 5.473, "speeds": [6.00, 6.17, 6.32, 6.72, 7.09, 6.94, 6.52, 5.96], "run_twa": 150.7, "run_speed": 5.928},
+    {"tws": 12, "beat_twa": 38.1, "beat_speed": 5.718, "speeds": [6.30, 6.53, 6.78, 7.03, 7.81, 7.88, 7.25, 6.46], "run_twa": 147.8, "run_speed": 6.618},
+    {"tws": 14, "beat_twa": 37.5, "beat_speed": 5.786, "speeds": [6.47, 6.82, 7.29, 7.38, 8.30, 8.82, 8.21, 7.09], "run_twa": 144.8, "run_speed": 7.514},
+    {"tws": 16, "beat_twa": 37.6, "beat_speed": 5.806, "speeds": [6.54, 6.92, 7.62, 8.08, 8.78, 9.47, 9.32, 7.93], "run_twa": 143.7, "run_speed": 8.524},
+    {"tws": 20, "beat_twa": 38.6, "beat_speed": 5.860, "speeds": [6.60, 7.00, 7.84, 8.93, 9.72, 10.78, 12.68, 11.01], "run_twa": 138.8, "run_speed": 12.666}
+  ]
+}

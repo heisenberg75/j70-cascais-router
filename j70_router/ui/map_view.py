@@ -441,7 +441,15 @@ def build_course_map(
     )
     # OpenStreetMap requires no private token. The course overlays remain useful
     # if tiles are unavailable because all tactical layers are local Folium data.
-    map_object = folium.Map(location=location, zoom_start=zoom, tiles="OpenStreetMap", control_scale=True)
+    map_object = folium.Map(
+        location=location,
+        zoom_start=zoom,
+        tiles="OpenStreetMap",
+        control_scale=True,
+        # Let the containing Streamlit page own normal mouse-wheel scrolling.
+        # Zoom remains available through the +/- controls and pinch gestures.
+        scroll_wheel_zoom=False,
+    )
     if show_wind:
         if arome_source is not None:
             _add_gridded_wind(map_object, arome_source, valid_time)

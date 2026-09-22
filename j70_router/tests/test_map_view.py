@@ -109,6 +109,7 @@ class MapViewTests(unittest.TestCase):
         self.assertIn("draggable", html)
         self.assertIn("openstreetmap", html.lower())
         self.assertIn("Wind speed [kt]", html)
+        self.assertIn('"scrollWheelZoom": false', html)
 
     def test_route_is_rendered_as_port_and_starboard_segments(self) -> None:
         frame = LocalCartesian(38.64, -9.50)

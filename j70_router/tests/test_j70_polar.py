@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from j70_router.sailing.j70_polar import J70Polar, J70SpeedModel
+from j70_router.sailing.j70_polar import DEFAULT_POLAR_PATH, J70Polar, J70SpeedModel
 from j70_router.sailing.polar import KNOT_TO_MPS
 from j70_router.sailing.targets import expected_vmg_knots, target_twa
 
@@ -14,6 +14,10 @@ class J70PolarTests(unittest.TestCase):
     def test_published_table_point_is_preserved(self) -> None:
         self.assertAlmostEqual(self.polar.boat_speed(10.0, 90.0), 6.72, places=6)
         self.assertAlmostEqual(self.polar.boat_speed(12.0, 38.1), 5.718, places=6)
+
+    def test_default_polar_is_packaged_with_the_sailing_module(self) -> None:
+        self.assertTrue(DEFAULT_POLAR_PATH.is_file())
+        self.assertEqual(DEFAULT_POLAR_PATH.parent.name, "sailing")
 
     def test_interpolates_in_tws_and_twa(self) -> None:
         value = self.polar.boat_speed(11.0, 90.0)

@@ -10,7 +10,11 @@ import numpy as np
 
 from .polar import KNOT_TO_MPS
 
-DEFAULT_POLAR_PATH = Path(__file__).parents[2] / "data" / "polar" / "j70_orc_best_performance.json"
+# Keep the runtime polar beside the module that consumes it.  The repository's
+# top-level ``data`` directory is intentionally ignored because it contains
+# large downloaded forecasts, so files stored there are absent on clean/cloud
+# deployments.
+DEFAULT_POLAR_PATH = Path(__file__).with_name("j70_orc_best_performance.json")
 
 
 class J70Polar:
