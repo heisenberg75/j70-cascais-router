@@ -18,6 +18,23 @@ class CurrentField(Protocol):
 
 
 @dataclass(frozen=True)
+class TimeClampedCurrentField:
+    """Hold the nearest available current frame outside its time window."""
+
+    source: CurrentField
+    first_time: datetime
+    last_time: datetime
+
+    def __post_init__(self) -> None:
+        if self.first_time > self.last_time:
+            raise ValueError("first_time must not follow last_time")
+
+    def current_at(self, position: tuple[float, float], time: datetime) -> tuple[float, float]:
+        bounded_time = min(max(time, self.first_time), self.last_time)
+        return self.source.current_at(position, bounded_time)
+
+
+@dataclass(frozen=True)
 class StepResult:
     end: tuple[float, float]
     end_time: datetime

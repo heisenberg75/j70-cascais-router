@@ -49,3 +49,20 @@ class WindSample:
 class WindField(Protocol):
     def wind_at(self, position: Position, time: datetime) -> WindSample:
         """Return wind at local Cartesian ``(east_m, north_m)`` and UTC time."""
+
+
+@dataclass(frozen=True)
+class TimeClampedWindField:
+    """Hold the nearest forecast frame outside a field's time window."""
+
+    source: WindField
+    first_time: datetime
+    last_time: datetime
+
+    def __post_init__(self) -> None:
+        if self.first_time > self.last_time:
+            raise ValueError("first_time must not follow last_time")
+
+    def wind_at(self, position: Position, time: datetime) -> WindSample:
+        bounded_time = min(max(time, self.first_time), self.last_time)
+        return self.source.wind_at(position, bounded_time)

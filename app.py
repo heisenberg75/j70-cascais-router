@@ -25,13 +25,15 @@ from j70_router.routing.optimizer import (
     heading_sector_margin_deg,
     route_laps,
 )
+from j70_router.routing.simulator import TimeClampedCurrentField
 from j70_router.sailing.geometry import LocalCartesian, distance
 from j70_router.sailing.j70_polar import J70Polar, J70SpeedModel
 from j70_router.sailing.polar import KNOT_TO_MPS
 from j70_router.sailing.targets import TargetAngleModel, expected_vmg_knots, target_twa
 from j70_router.ui.map_view import build_course_map, process_map_interaction
+from j70_router.ui.time_display import format_cascais_time
 from j70_router.ui.weather_state import WeatherSourceStatus, validate_weather_dataset
-from j70_router.wind.base import WindOutOfBoundsError
+from j70_router.wind.base import TimeClampedWindField, WindOutOfBoundsError
 from j70_router.wind.icon_eu import download_icon_eu_box, get_latest_icon_eu_run, load_cached_icon_eu
 from j70_router.wind.ipma_portugal import (
     download_ipma_portugal_box,
@@ -441,15 +443,18 @@ with map_tab:
             )
             invalidate_route()
         selected_time = forecast_column.selectbox(
-            "Forecast time",
+            "Forecast time (Cascais local)",
             forecast_times,
             index=forecast_times.index(st.session_state.selected_forecast_time),
-            format_func=lambda value: value.strftime("%Y-%m-%d %H:00 UTC"),
+            format_func=format_cascais_time,
             key="forecast_time_widget",
             on_change=invalidate_route,
         )
         st.session_state.selected_forecast_time = selected_time
-        st.caption("NOW uses the model forecast valid closest to current UTC; it is not an observation.")
+        st.caption(
+            "Times are Cascais local time (WET/WEST). NOW uses the model forecast valid "
+            "closest to the current time; it is not an observation."
+        )
 
         st.caption(
             "Cascais models: IPMA Portugal AROME-PT2 2.5 km, ICON-EU fallback, "
@@ -464,8 +469,8 @@ with map_tab:
             st.markdown(f"**Active weather: {source.model_name}**")
             st.write(f"Model run: {source.forecast_run:%Y-%m-%d %H:00 UTC}")
             st.write(
-                f"Forecast range: {source.grid.times[0]:%Y-%m-%d %H:00} – "
-                f"{source.grid.times[-1]:%Y-%m-%d %H:00} UTC"
+                f"Forecast range: {format_cascais_time(source.grid.times[0])} – "
+                f"{format_cascais_time(source.grid.times[-1])}"
             )
             st.write(f"Grid resolution: {source.grid_resolution_deg:g}°")
         else:
@@ -493,7 +498,7 @@ with map_tab:
                             west,
                             east,
                             selected_time - timedelta(hours=1),
-                            selected_time + timedelta(hours=8),
+                            selected_time + timedelta(hours=12),
                         )
                     st.session_state.current_message = "Copernicus Marine current loaded and cached."
                     invalidate_route()
@@ -511,8 +516,8 @@ with map_tab:
             current_data = st.session_state.current_dataset
             st.write(f"Dataset: `{current_data.dataset_id}`")
             st.write(
-                f"Current range: {current_data.grid.times[0]:%Y-%m-%d %H:%M} – "
-                f"{current_data.grid.times[-1]:%Y-%m-%d %H:%M} UTC"
+                f"Current range: {format_cascais_time(current_data.grid.times[0])} – "
+                f"{format_cascais_time(current_data.grid.times[-1])}"
             )
             st.write(f"Current grid: {current_data.grid_resolution_deg:g}°")
 
@@ -528,9 +533,17 @@ with map_tab:
             direction_gradient_x_deg_per_m=0.002,
             reference_time=selected_time,
         )
-    routing_current = (
+    raw_routing_current = (
         st.session_state.current_dataset.for_local_frame(frame)
         if st.session_state.current_dataset is not None else None
+    )
+    routing_current = (
+        TimeClampedCurrentField(
+            raw_routing_current,
+            st.session_state.current_dataset.grid.times[0],
+            st.session_state.current_dataset.grid.times[-1],
+        )
+        if raw_routing_current is not None else None
     )
 
     with sailing_panel:
@@ -613,15 +626,22 @@ with map_tab:
                 )
                 active_forecast = st.session_state.forecast_dataset
                 estimated_finish = selected_time + timedelta(seconds=4.0 * estimated_leg_seconds)
+                routing_wind = wind
                 if (
                     st.session_state.weather_source != "synthetic"
                     and active_forecast is not None
-                    and estimated_finish > active_forecast.grid.times[-1]
                 ):
-                    raise RouteNotFoundError(
-                        "The loaded forecast ends before this longer course is expected to finish. "
-                        "Select an earlier forecast valid time or refresh the weather dataset."
+                    routing_wind = TimeClampedWindField(
+                        wind,
+                        active_forecast.grid.times[0],
+                        active_forecast.grid.times[-1],
                     )
+                    if estimated_finish > active_forecast.grid.times[-1]:
+                        st.warning(
+                            "The race may extend beyond the loaded forecast. Routing will use "
+                            f"the final forecast frame ({format_cascais_time(active_forecast.grid.times[-1])}) "
+                            "for any remaining race time."
+                        )
                 if routing_current is not None:
                     try:
                         for current_position in (leeward_xy, windward_xy):
@@ -633,11 +653,17 @@ with map_tab:
                             "Open WEATHER and press LOAD / REFRESH CURRENT after setting the "
                             f"marks and forecast time. Details: {exc}"
                         ) from exc
+                    current_grid = st.session_state.current_dataset.grid
+                    if estimated_finish > current_grid.times[-1]:
+                        st.warning(
+                            "The race may extend beyond the loaded current forecast. Routing will "
+                            f"hold the final current frame ({format_cascais_time(current_grid.times[-1])}) constant."
+                        )
                 upwind_reachable, upwind_margin = sampled_course_reachability(
                     leeward_xy,
                     windward_xy,
                     selected_time,
-                    wind,
+                    routing_wind,
                     target_angle_model,
                     "upwind",
                     estimated_leg_seconds,
@@ -654,7 +680,7 @@ with map_tab:
                     windward_xy,
                     leeward_xy,
                     downwind_start_time,
-                    wind,
+                    routing_wind,
                     target_angle_model,
                     "downwind",
                     estimated_leg_seconds,
@@ -671,7 +697,7 @@ with map_tab:
                         leeward_xy,
                         windward_xy,
                         selected_time,
-                        wind,
+                        routing_wind,
                         J70SpeedModel(polar, crew_speed_factor=crew_factor),
                         laps=2,
                         max_tacks=int(max_tacks),
@@ -724,7 +750,8 @@ with map_tab:
         )
     else:
         explanation_column.caption(
-            f"Colors show surface-current speed; arrows point where the water moves. Valid {current_time:%Y-%m-%d %H:%M UTC}."
+            "Colors show surface-current speed; arrows point where the water moves. "
+            f"Valid {format_cascais_time(current_time)}."
         )
         current_age_hours = abs((selected_time - current_time).total_seconds()) / 3600.0
         if current_age_hours > 6.0:
@@ -804,7 +831,7 @@ with map_tab:
                 st.write(f"Run: {arome_source.forecast_run:%Y-%m-%d %H:00 UTC}")
             else:
                 st.write("Model: Synthetic/test wind")
-            st.write(f"Valid: {selected_time:%Y-%m-%d %H:00 UTC}")
+            st.write(f"Valid: {format_cascais_time(selected_time)}")
             weather_values = st.columns(2)
             weather_values[0].metric("Leeward TWS", f"{leeward_wind.speed_mps / KNOT_TO_MPS:.1f} kt")
             weather_values[0].metric("Leeward TWD", f"{leeward_wind.direction_deg:.0f}°")
@@ -980,7 +1007,10 @@ with weather_tab:
     source = st.session_state.forecast_dataset
     if st.session_state.weather_source != "synthetic" and source is not None:
         inspection_wind = source.for_local_frame(frame)
-        st.write(f"{source.model_name} run: {source.forecast_run:%Y-%m-%d %H:00 UTC} · valid: {selected_time:%Y-%m-%d %H:00 UTC}")
+        st.write(
+            f"{source.model_name} run: {source.forecast_run:%Y-%m-%d %H:00 UTC} · "
+            f"valid: {format_cascais_time(selected_time)}"
+        )
     else:
         inspection_wind = SyntheticWindField(
             base_speed_mps=5.2,
@@ -989,7 +1019,7 @@ with weather_tab:
             direction_gradient_x_deg_per_m=0.002,
             reference_time=selected_time,
         )
-        st.write(f"Synthetic/test wind · valid: {selected_time:%Y-%m-%d %H:00 UTC}")
+        st.write(f"Synthetic/test wind · valid: {format_cascais_time(selected_time)}")
     try:
         weather_figure = plot_wind_field_map(
             leeward_xy, windward_xy, inspection_wind, selected_time, padding_m=900.0
