@@ -1,0 +1,24 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Forecast/current downloads and generated outputs are runtime data.
+data/
+artifacts/
+runtime_logs/
+*.nc
+*.grib
+*.grib2
+*.npz
+
+# Local credentials and partial downloads must never be published.
+.env
+.env.*
+.streamlit/secrets.toml
+*.part
+
+# Local profiling and scratch files.
+.tmp_*.py
